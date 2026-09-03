@@ -54,3 +54,19 @@ test('partial registration failure attempts rollback', async () => {
   assert.deepEqual(unregistered.sort(), registered.sort());
   delete globalThis.document;
 });
+
+test('rejected read tool calls leave bounded rejection audit', async () => {
+  const localState = defaultRuntimeState(validateMission(fixture));
+  const descriptors = createToolDescriptors(() => localState, () => {});
+  const inspect = descriptors.find((tool) => tool.name === 'mission_inspect_task');
+  await assert.rejects(inspect.execute({ taskId: 'UNKNOWN' }), /unknown task/);
+  assert.equal(localState.audit.some((event) => event.action === 'tool_rejected' && event.toolName === 'mission_inspect_task'), true);
+});
+
+test('static root uses deploy-safe relative asset and data paths', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../assets/app.js', import.meta.url), 'utf8');
+  assert.match(html, /href="\.\/assets\/app\.css"/);
+  assert.match(html, /src="\.\/assets\/app\.js"/);
+  assert.match(app, /fetch\('\.\/data\/mission\.json'/);
+});
