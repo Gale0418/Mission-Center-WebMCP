@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "1.0",
+  "missionId": "WEBMCP-CHALLENGE",
+  "title": "Mission Center WebMCP — Human-in-Command Launch",
+  "goal": "Let a browser agent diagnose mission state and propose safe next steps while a human remains the only authority that can approve lifecycle changes.",
+  "revision": 7,
+  "updatedAt": "2026-09-03T14:30:00Z",
+  "tasks": [
+    {
+      "id": "WMC-101",
+      "title": "Expose structured Mission Center tools to browser agents",
+      "priority": "P0",
+      "status": "Done",
+      "owner": "Mission Center",
+      "dependencies": [],
+      "nextAction": "Keep the tool surface narrow and auditable.",
+      "verification": {
+        "result": "pass",
+        "taskRevision": 3,
+        "checkedAt": "2026-09-03T13:25:00Z",
+        "evidenceRefs": ["tests/core.test.mjs", "assets/webmcp.js"],
+        "unresolvedCritical": 0,
+        "unresolvedHigh": 0
+      },
+      "revision": 3,
+      "tags": ["webmcp", "tools"]
+    },
+    {
+      "id": "WMC-102",
+      "title": "Make agent actions proposal-only",
+      "priority": "P0",
+      "status": "In Progress",
+      "owner": "Mission Center",
+      "dependencies": ["WMC-101"],
+      "nextAction": "Verify stale proposals are rejected after concurrent task changes.",
+      "verification": null,
+      "revision": 4,
+      "tags": ["human-in-loop", "safety"]
+    },
+    {
+      "id": "WMC-103",
+      "title": "Prove Review → Done is evidence-gated",
+      "priority": "P0",
+      "status": "Review",
+      "owner": "Mission Center",
+      "dependencies": ["WMC-101", "WMC-102"],
+      "nextAction": "Ask the agent to inspect the evidence and propose Done; a human must approve it.",
+      "verification": {
+        "result": "pass",
+        "taskRevision": 5,
+        "checkedAt": "2026-09-03T14:05:00Z",
+        "evidenceRefs": ["tests/core.test.mjs#review-to-done", "scripts/verify.mjs"],
+        "unresolvedCritical": 0,
+        "unresolvedHigh": 0
+      },
+      "revision": 5,
+      "tags": ["evidence", "review"]
+    },
+    {
+      "id": "WMC-104",
+      "title": "Resolve inaccessible mobile approval focus",
+      "priority": "P1",
+      "status": "Blocked",
+      "owner": "Mission Center",
+      "dependencies": ["WMC-102"],
+      "nextAction": "Confirm the modal focus path on a narrow viewport before clearing the blocker.",
+      "blocker": "Human approval must remain keyboard reachable on a 390px viewport.",
+      "verification": null,
+      "revision": 2,
+      "tags": ["accessibility", "mobile"]
+    },
+    {
+      "id": "WMC-105",
+      "title": "Prepare public judging package",
+      "priority": "P1",
+      "status": "Ready",
+      "owner": "Mission Center",
+      "dependencies": ["WMC-103", "WMC-104"],
+      "nextAction": "Keep the live app, repo, submission copy, and demo script consistent.",
+      "verification": null,
+      "revision": 1,
+      "tags": ["submission", "judging"]
+    }
+  ]
+}

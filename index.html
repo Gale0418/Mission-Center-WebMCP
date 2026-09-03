@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Mission Center WebMCP challenge edition: agents inspect and propose; humans approve; evidence gates completion.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Mission Center WebMCP · Human in Command</title>
+  <link rel="stylesheet" href="./assets/app.css">
+  <script type="module" src="./assets/app.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <div class="brand-kicker">MISSION CENTER · WEBMCP CHALLENGE EDITION</div>
+        <h1 id="missionTitle">Loading Mission Center…</h1>
+        <p class="subtitle" id="missionGoal">Loading canonical challenge state.</p>
+      </div>
+      <div class="status-cluster" aria-label="System status">
+        <span class="badge" id="webmcpStatus" data-supported="false">Checking WebMCP…</span>
+        <span class="badge">STATIC · ZERO BACKEND</span>
+        <span class="badge">HUMAN APPROVAL REQUIRED</span>
+      </div>
+    </header>
+
+    <section class="hero" aria-label="Mission overview">
+      <article class="hero-card">
+        <span class="eyebrow">Command doctrine</span>
+        <h2>Agent proposes. Human decides. Mission Center verifies.</h2>
+        <p>The browser agent receives structured tools for discovery, evidence inspection, dependency tracing, and safe proposals. It receives no tool that can approve its own proposal.</p>
+        <div class="progress" aria-label="Mission progress"><div id="progressBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div></div>
+      </article>
+      <article class="metric"><strong id="progressValue">0%</strong><span>Mission progress</span></article>
+      <article class="metric"><strong id="attentionCount">0</strong><span>Attention items</span></article>
+      <article class="metric"><strong id="pendingCount">0</strong><span>Pending proposals</span></article>
+    </section>
+
+    <div class="layout">
+      <section class="panel" aria-labelledby="boardTitle">
+        <header class="panel-head"><h2 id="boardTitle">FLEET COMMAND PLOT · TASK LIFECYCLE TRUTH</h2><span class="eyebrow" id="revisionValue">R—</span></header>
+        <div class="board">
+          <section class="zone"><div class="zone-head"><span>Ready</span><span data-zone-count="Ready">0</span></div><ul class="zone-list" data-zone-list="Ready"></ul></section>
+          <section class="zone"><div class="zone-head"><span>In Progress</span><span data-zone-count="In Progress">0</span></div><ul class="zone-list" data-zone-list="In Progress"></ul></section>
+          <section class="zone"><div class="zone-head"><span>Blocked</span><span data-zone-count="Blocked">0</span></div><ul class="zone-list" data-zone-list="Blocked"></ul></section>
+          <section class="zone"><div class="zone-head"><span>Review</span><span data-zone-count="Review">0</span></div><ul class="zone-list" data-zone-list="Review"></ul></section>
+          <section class="zone"><div class="zone-head"><span>Done</span><span data-zone-count="Done">0</span></div><ul class="zone-list" data-zone-list="Done"></ul></section>
+        </div>
+      </section>
+
+      <aside class="side" aria-label="Mission inspection and agent controls">
+        <section class="panel inspector">
+          <span class="eyebrow">Evidence inspector</span>
+          <div class="status-row"><h3><span id="inspectorId">—</span> · <span id="inspectorTitle">Select a task</span></h3><span class="status-chip" id="inspectorStatus">—</span></div>
+          <dl class="fact-grid">
+            <dt>Next action</dt><dd id="inspectorNext">—</dd>
+            <dt>Dependencies</dt><dd id="inspectorDeps">—</dd>
+            <dt>Transitions</dt><dd id="inspectorAllowed">—</dd>
+            <dt>Evidence</dt><dd id="inspectorEvidence">—</dd>
+          </dl>
+          <ul class="evidence-refs" id="inspectorRefs"></ul>
+          <div class="agent-actions"><button class="action secondary" type="button" id="copyHandoff">Copy bounded handoff</button></div>
+        </section>
+
+        <section class="panel agent-lab">
+          <span class="eyebrow">Judge agent lab</span>
+          <h2>One-click fallback uses the same tool handlers</h2>
+          <p class="help" id="webmcpHelp" hidden>This browser does not expose <code>document.modelContext</code>. Judges can still run the deterministic journey below; in ChatGPT's in-app browser or WebMCP-enabled Chrome the same handlers are registered as native tools.</p>
+          <div class="agent-actions"><button class="action" type="button" id="judgeJourney">Run judge journey</button><button class="action secondary" type="button" id="resetDemo">Reset demo state</button></div>
+          <pre id="toolOutput" aria-live="polite">Ask an agent: “Find the Review task, inspect its evidence, and propose the safest next lifecycle move.”</pre>
+        </section>
+      </aside>
+    </div>
+
+    <section class="panel proposal-tray" aria-labelledby="proposalTitle">
+      <header class="panel-head"><h2 id="proposalTitle">PENDING HUMAN DECISIONS</h2><span class="eyebrow">No agent approval tool exists</span></header>
+      <ul class="proposals" id="proposalList"></ul>
+    </section>
+
+    <section class="panel audit" aria-labelledby="auditTitle">
+      <header class="panel-head"><h2 id="auditTitle">BOUNDED AUDIT TRAIL</h2><span class="eyebrow">Metadata only · no prompt/reasoning storage</span></header>
+      <ul class="audit-list" id="auditList"></ul>
+    </section>
+
+    <p class="notice" id="notice" role="status" aria-live="polite">Mission Center is loading.</p>
+    <footer class="footer"><span>Competition build derived from Codex Mission Center 0.5.1 · baseline documented in <code>UPSTREAM_BASELINE.md</code></span><span><a href="./README.md">README</a> · <a href="./CHALLENGE_SUBMISSION.md">Submission notes</a> · MIT</span></footer>
+  </main>
+
+  <dialog id="decisionDialog" aria-labelledby="decisionTitle">
+    <span class="eyebrow">Human command gate</span>
+    <h2 id="decisionTitle">Approve this agent proposal?</h2>
+    <p><strong id="decisionProposal"></strong></p>
+    <p id="decisionSummary"></p>
+    <p id="decisionReason"></p>
+    <p class="help">Approval re-checks the task revision and, for Review → Done, requires current passing evidence with no unresolved Critical or High findings.</p>
+    <div class="dialog-actions"><button type="button" class="secondary" id="cancelApproval">Cancel</button><button type="button" id="confirmApproval">Revalidate & approve</button></div>
+  </dialog>
+</body>
+</html>
