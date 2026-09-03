@@ -11,6 +11,21 @@ const MAX_REASON_LENGTH = 600;
 const MAX_NEXT_ACTION_LENGTH = 500;
 const MAX_AUDIT_ITEMS = 80;
 const STORAGE_SCHEMA = 1;
+const MAX_TASKS = 30;
+const MAX_TAGS = 12;
+const MAX_EVIDENCE_REFS = 16;
+
+function assertOnlyKeys(value, allowed, label) {
+  for (const key of Object.keys(value)) {
+    if (!allowed.has(key)) throw new Error(`unsupported ${label} field: ${key}`);
+  }
+}
+
+function assertIsoTimestamp(value, label) {
+  if (typeof value !== "string" || value.length > 40 || Number.isNaN(Date.parse(value))) {
+    throw new Error(`invalid ${label}`);
+  }
+}
 
 function clone(value) {
   return structuredClone(value);
@@ -34,31 +49,70 @@ function cleanText(value, maxLength, label) {
 
 export function validateMission(input) {
   assertPlainObject(input, "mission");
+  assertOnlyKeys(input, new Set(["schemaVersion", "missionId", "title", "goal", "revision", "updatedAt", "tasks"]), "mission");
   if (input.schemaVersion !== "1.0") throw new Error("unsupported mission schema");
-  if (!Array.isArray(input.tasks) || input.tasks.length < 1 || input.tasks.length > 30) {
-    throw new Error("mission tasks must contain 1–30 items");
+  if (!/^[A-Z][A-Z0-9-]{2,63}$/.test(input.missionId ?? "")) throw new Error("invalid mission id");
+  cleanText(input.title, 160, "mission title");
+  cleanText(input.goal, 1200, "mission goal");
+  if (!Number.isInteger(input.revision) || input.revision < 1) throw new Error("invalid mission revision");
+  assertIsoTimestamp(input.updatedAt, "mission updatedAt");
+  if (!Array.isArray(input.tasks) || input.tasks.length < 1 || input.tasks.length > MAX_TASKS) {
+    throw new Error(`mission tasks must contain 1–${MAX_TASKS} items`);
   }
   const ids = new Set();
+  const taskKeys = new Set(["id", "title", "priority", "status", "owner", "dependencies", "nextAction", "blocker", "verification", "revision", "tags"]);
+  const verificationKeys = new Set(["result", "taskRevision", "checkedAt", "evidenceRefs", "unresolvedCritical", "unresolvedHigh"]);
   for (const task of input.tasks) {
     assertPlainObject(task, "task");
+    assertOnlyKeys(task, taskKeys, `task ${task.id ?? "unknown"}`);
     if (!/^[A-Z][A-Z0-9-]{2,31}$/.test(task.id ?? "")) throw new Error(`invalid task id: ${task.id}`);
     if (ids.has(task.id)) throw new Error(`duplicate task id: ${task.id}`);
     ids.add(task.id);
+    cleanText(task.title, 220, `title for ${task.id}`);
+    if (!["P0", "P1", "P2"].includes(task.priority)) throw new Error(`invalid priority for ${task.id}`);
     if (!VALID_STATUSES.includes(task.status)) throw new Error(`invalid status for ${task.id}`);
+    cleanText(task.owner, 120, `owner for ${task.id}`);
+    cleanText(task.nextAction, MAX_NEXT_ACTION_LENGTH, `nextAction for ${task.id}`);
+    if (task.blocker !== undefined) cleanText(task.blocker, 500, `blocker for ${task.id}`);
     if (!Number.isInteger(task.revision) || task.revision < 1) throw new Error(`invalid revision for ${task.id}`);
-    if (!Array.isArray(task.dependencies)) throw new Error(`dependencies must be an array for ${task.id}`);
+    if (!Array.isArray(task.dependencies) || task.dependencies.length > MAX_TASKS) throw new Error(`dependencies must be a bounded array for ${task.id}`);
+    if (new Set(task.dependencies).size !== task.dependencies.length) throw new Error(`duplicate dependencies for ${task.id}`);
+    if (!Array.isArray(task.tags) || task.tags.length > MAX_TAGS || task.tags.some((tag) => typeof tag !== "string" || tag.length < 1 || tag.length > 40)) {
+      throw new Error(`invalid tags for ${task.id}`);
+    }
     if (task.verification !== null && task.verification !== undefined) {
       assertPlainObject(task.verification, `verification for ${task.id}`);
-      if (!['pass', 'fail'].includes(task.verification.result)) throw new Error(`invalid verification result for ${task.id}`);
-      if (!Array.isArray(task.verification.evidenceRefs)) throw new Error(`invalid evidence refs for ${task.id}`);
+      assertOnlyKeys(task.verification, verificationKeys, `verification for ${task.id}`);
+      if (!["pass", "fail"].includes(task.verification.result)) throw new Error(`invalid verification result for ${task.id}`);
+      if (!Number.isInteger(task.verification.taskRevision) || task.verification.taskRevision < 1) throw new Error(`invalid evidence revision for ${task.id}`);
+      assertIsoTimestamp(task.verification.checkedAt, `verification checkedAt for ${task.id}`);
+      if (!Array.isArray(task.verification.evidenceRefs) || task.verification.evidenceRefs.length > MAX_EVIDENCE_REFS || task.verification.evidenceRefs.some((ref) => typeof ref !== "string" || ref.length < 1 || ref.length > 240)) {
+        throw new Error(`invalid evidence refs for ${task.id}`);
+      }
+      for (const field of ["unresolvedCritical", "unresolvedHigh"]) {
+        const count = task.verification[field] ?? 0;
+        if (!Number.isInteger(count) || count < 0 || count > 1000) throw new Error(`invalid ${field} for ${task.id}`);
+      }
     }
   }
   for (const task of input.tasks) {
     for (const dependency of task.dependencies) {
-      if (!ids.has(dependency)) throw new Error(`unknown dependency ${dependency} for ${task.id}`);
+      if (typeof dependency !== "string" || !ids.has(dependency)) throw new Error(`unknown dependency ${dependency} for ${task.id}`);
       if (dependency === task.id) throw new Error(`task ${task.id} depends on itself`);
     }
   }
+  const byId = new Map(input.tasks.map((task) => [task.id, task]));
+  const visiting = new Set();
+  const visited = new Set();
+  const visit = (id) => {
+    if (visiting.has(id)) throw new Error(`dependency cycle detected at ${id}`);
+    if (visited.has(id)) return;
+    visiting.add(id);
+    for (const dependency of byId.get(id).dependencies) visit(dependency);
+    visiting.delete(id);
+    visited.add(id);
+  };
+  for (const id of ids) visit(id);
   return clone(input);
 }
 
@@ -80,29 +134,49 @@ export function validateRuntimeState(input, baselineMission) {
   if (mission.missionId !== baselineMission.missionId) throw new Error("stored mission id mismatch");
   if (!Array.isArray(input.proposals) || input.proposals.length > 50) throw new Error("invalid proposals");
   if (!Array.isArray(input.audit) || input.audit.length > MAX_AUDIT_ITEMS) throw new Error("invalid audit log");
+  const proposalKeys = new Set(["id", "key", "type", "taskId", "expectedRevision", "fromStatus", "payload", "reason", "status", "createdAt", "decidedAt"]);
+  const proposalIds = new Set();
+  const pendingProposalKeys = new Set();
   for (const proposal of input.proposals) {
     assertPlainObject(proposal, "proposal");
+    assertOnlyKeys(proposal, proposalKeys, "proposal");
     if (!/^proposal-[a-z0-9-]{6,80}$/i.test(proposal.id ?? "")) throw new Error("invalid proposal id");
+    if (proposalIds.has(proposal.id)) throw new Error("duplicate proposal id");
+    proposalIds.add(proposal.id);
     if (!mission.tasks.some((task) => task.id === proposal.taskId)) throw new Error("proposal references unknown task");
-    if (!['transition', 'next_action'].includes(proposal.type)) throw new Error("invalid proposal type");
-    if (!['pending', 'approved', 'rejected', 'stale'].includes(proposal.status)) throw new Error("invalid proposal status");
+    if (!["transition", "next_action"].includes(proposal.type)) throw new Error("invalid proposal type");
+    if (!["pending", "approved", "rejected", "stale"].includes(proposal.status)) throw new Error("invalid proposal status");
     if (!Number.isInteger(proposal.expectedRevision) || proposal.expectedRevision < 1) throw new Error("invalid proposal revision");
     if (typeof proposal.key !== "string" || proposal.key.length > 1200) throw new Error("invalid proposal key");
-    if (typeof proposal.reason !== "string" || proposal.reason.length < 1 || proposal.reason.length > MAX_REASON_LENGTH) throw new Error("invalid proposal reason");
+    cleanText(proposal.reason, MAX_REASON_LENGTH, "proposal reason");
+    assertIsoTimestamp(proposal.createdAt, "proposal createdAt");
+    if (proposal.status === "pending" && proposal.decidedAt !== undefined) throw new Error("pending proposal cannot have decidedAt");
+    if (proposal.status !== "pending" && proposal.decidedAt !== undefined) assertIsoTimestamp(proposal.decidedAt, "proposal decidedAt");
     if (!VALID_STATUSES.includes(proposal.fromStatus)) throw new Error("invalid proposal source status");
     assertPlainObject(proposal.payload, "proposal payload");
     if (proposal.type === "transition") {
+      assertOnlyKeys(proposal.payload, new Set(["targetStatus"]), "transition proposal payload");
       if (typeof proposal.payload.targetStatus !== "string" || !VALID_STATUSES.includes(proposal.payload.targetStatus)) throw new Error("invalid transition proposal payload");
     } else {
-      if (typeof proposal.payload.nextAction !== "string" || proposal.payload.nextAction.length < 1 || proposal.payload.nextAction.length > MAX_NEXT_ACTION_LENGTH) throw new Error("invalid next-action proposal payload");
+      assertOnlyKeys(proposal.payload, new Set(["nextAction"]), "next-action proposal payload");
+      cleanText(proposal.payload.nextAction, MAX_NEXT_ACTION_LENGTH, "proposal nextAction");
+    }
+    if (proposal.key !== proposalKey(proposal.type, proposal.taskId, proposal.expectedRevision, proposal.payload)) throw new Error("proposal key mismatch");
+    if (proposal.status === "pending") {
+      if (pendingProposalKeys.has(proposal.key)) throw new Error("duplicate pending proposal key");
+      pendingProposalKeys.add(proposal.key);
     }
   }
   for (const event of input.audit) {
     assertPlainObject(event, "audit event");
+    assertIsoTimestamp(event.at, "audit timestamp");
     if (!["system", "agent", "human"].includes(event.kind)) throw new Error("invalid audit actor");
     if (typeof event.action !== "string" || event.action.length < 1 || event.action.length > 80) throw new Error("invalid audit action");
     for (const key of Object.keys(event)) {
       if (!["at", "kind", "action", "taskId", "proposalId", "proposalType", "toolName"].includes(key)) throw new Error(`unsupported audit field: ${key}`);
+    }
+    for (const key of ["taskId", "proposalId", "proposalType", "toolName"]) {
+      if (event[key] !== undefined && (typeof event[key] !== "string" || event[key].length < 1 || event[key].length > 100)) throw new Error(`invalid audit ${key}`);
     }
   }
   return { storageSchema: STORAGE_SCHEMA, fixtureRevision: input.fixtureRevision, mission, proposals: clone(input.proposals), audit: clone(input.audit) };
