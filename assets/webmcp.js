@@ -15,9 +15,16 @@ const jsonResult = (value) => JSON.stringify(value, null, 2);
 export function createToolDescriptors(getState, persist) {
   const executeRead = (toolName, fn) => async (input = {}) => {
     const state = getState();
-    appendAudit(state, { kind: 'agent', action: 'tool_called', toolName });
-    persist();
-    return jsonResult(fn(state, input));
+    appendAudit(state, { kind: 'agent', action: 'tool_called', toolName, taskId: input.taskId });
+    try {
+      const result = fn(state, input);
+      persist();
+      return jsonResult(result);
+    } catch (error) {
+      appendAudit(state, { kind: 'agent', action: 'tool_rejected', toolName, taskId: input.taskId });
+      persist();
+      throw error;
+    }
   };
   const executeProposal = (toolName, fn) => async (input = {}) => {
     const state = getState();
