@@ -30,47 +30,6 @@ jobs:
       - name: Submission verification
         run: npm run verify
 
-  cleanup-temporary-branches:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Delete every non-main construction branch
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          branches=(
-            'build/webmcp-challenge'
-            'codex/release-asset-staging'
-            'codex/tree-upload-test'
-            'codex/tree-upload-test-2'
-            'codex/tree-upload-test-3'
-            'codex/tree-upload-test-4'
-            'codex/tree-upload-test-5'
-            'codex/tree-upload-test-6'
-            'codex/webmcp-competition-flight'
-            'codex/webmcp-competition-flight-backup'
-            'codex/webmcp-competition-flight-pr'
-            'codex/webmcp-competition-flight-review'
-          )
-          for branch in "${branches[@]}"; do
-            code=$(curl --silent --show-error --output /tmp/delete-ref.json --write-out '%{http_code}' \
-              --request DELETE \
-              --header "Authorization: Bearer ${GH_TOKEN}" \
-              --header 'Accept: application/vnd.github+json' \
-              --header 'X-GitHub-Api-Version: 2022-11-28' \
-              "https://api.github.com/repos/${REPOSITORY}/git/refs/heads/${branch}")
-            if [[ "$code" != '204' && "$code" != '404' && "$code" != '422' ]]; then
-              cat /tmp/delete-ref.json
-              echo "Failed to delete ${branch}: HTTP ${code}" >&2
-              exit 1
-            fi
-          done
-
   deploy:
     if: ${{ github.event.repository.has_pages == true }}
     needs: verify
