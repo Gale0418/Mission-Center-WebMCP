@@ -90,7 +90,7 @@ test('illegal lifecycle jumps fail closed', () => {
 
 test('sensitive strings are rejected from proposal reason', () => {
   const state = fresh();
-  assert.throws(() => proposeNextAction(state, { taskId: 'WMC-102', nextAction: 'Run focused checks.', reason: 'token=abc123' }), /sensitive material/);
+  assert.throws(() => proposeNextAction(state, { taskId: 'WMC-102', nextAction: 'Run focused checks', reason: 'token=abc123' }), /sensitive material/);
 });
 
 test('Done task next action cannot be silently rewritten', () => {
@@ -125,4 +125,50 @@ test('stored state rejects oversized proposal collection', () => {
   const state = fresh();
   state.proposals = Array.from({ length: 51 }, (_, index) => ({ id: `proposal-${String(index).padStart(6,'0')}`, key: `k${index}`, type: 'transition', taskId: 'WMC-102', expectedRevision: 4, fromStatus: 'In Progress', payload: { targetStatus: 'Review' }, reason: 'x', status: 'pending', createdAt: new Date().toISOString() }));
   assert.throws(() => validateRuntimeState(state, fixture), /invalid proposals/);
+});
+
+test('stored state rejects fixture-version drift', () => {
+  const state = fresh();
+  state.fixtureRevision -= 1;
+  assert.throws(() => validateRuntimeState(state, fixture), /fixture revision mismatch/);
+});
+
+test('stored state rejects hidden mission fields and dependency cycles', () => {
+  const state = fresh();
+  state.mission.unexpected = 'hidden';
+  assert.throws(() => validateRuntimeState(state, fixture), /unsupported mission field/);
+  delete state.mission.unexpected;
+  const first = state.mission.tasks.find((task) => task.id === 'WMC-101');
+  first.dependencies = ['WMC-103'];
+  assert.throws(() => validateRuntimeState(state, fixture), /dependency cycle/);
+});
+
+test('stored audit cannot retain arbitrary or secret fields', () => {
+  const state = fresh();
+  state.audit[0].prompt = 'private prompt';
+  assert.throws(() => validateRuntimeState(state, fixture), /unsupported audit field/);
+});
+
+test('stored proposal re-applies sensitive-text screening', () => {
+  const state = fresh();
+  const proposal = proposeNextAction(state, { taskId: 'WMC-102', nextAction: 'Run focused checks', reason: 'Ordinary reason' });
+  state.proposals.find((candidate) => candidate.id === proposal.id).reason = 'token=abc123';
+  assert.throws(() => validateRuntimeState(state, fixture), /sensitive material/);
+});
+
+test('stored proposal payload rejects hidden fields and key tampering', () => {
+  const state = fresh();
+  const proposal = proposeTransition(state, { taskId: 'WMC-103', targetStatus: 'Done', reason: 'Evidence is current.' });
+  state.proposals[0].payload.hidden = 'surprise';
+  assert.throws(() => validateRuntimeState(state, fixture), /unsupported transition proposal payload field/);
+  delete state.proposals[0].payload.hidden;
+  state.proposals[0].key = proposal.key + '-tampered';
+  assert.throws(() => validateRuntimeState(state, fixture), /proposal key mismatch/);
+});
+
+test('stored proposal ids and pending keys must be unique', () => {
+  const state = fresh();
+  proposeTransition(state, { taskId: 'WMC-103', targetStatus: 'Done', reason: 'Evidence is current.' });
+  state.proposals.push(structuredClone(state.proposals[0]));
+  assert.throws(() => validateRuntimeState(state, fixture), /duplicate proposal id/);
 });
