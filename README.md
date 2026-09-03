@@ -2,57 +2,57 @@
 
 > **Agent proposes. Human decides. Mission Center verifies.**
 
-Mission Center WebMCP is the judge-facing competition edition of [Codex Mission Center](https://github.com/Gale0418/Codex-Mission-Center). It exposes the mission lifecycle to browser agents through eight structured WebMCP tools without giving the agent an invisible approval channel.
+[Live demo](https://gale0418.github.io/Mission-Center-WebMCP/) · [Challenge notes](CHALLENGE_SUBMISSION.md) · [Upstream baseline](UPSTREAM_BASELINE.md)
 
-The upstream baseline is frozen at **`1d032c4708eb198259a4ea625a7d731b5277e431`** (Mission Center 0.5.1). See [`UPSTREAM_BASELINE.md`](UPSTREAM_BASELINE.md) for prior-work disclosure and the intentionally preserved product rules.
+Mission Center is my existing local, evidence-backed task workspace for Codex. This WebMCP Challenge edition adds a browser-native collaboration layer: eight structured tools let an agent understand the mission, inspect evidence, trace dependencies, and propose changes without giving it final authority.
 
-## Why this exists
+The upstream baseline is frozen at **`1d032c4708eb198259a4ea625a7d731b5277e431`** (Mission Center 0.5.1). The challenge work is intentionally separated and documented in [`UPSTREAM_BASELINE.md`](UPSTREAM_BASELINE.md).
 
-Normal web agents often have to infer application semantics from pixels, labels, or DOM structure. Mission Center already had explicit task lifecycle, evidence, handoff, and human-approval rules. WebMCP turns those rules into a native browser tool surface:
+## What WebMCP changes
 
-| Tool | Capability | Can change lifecycle truth? |
+Without structured tools, a browser agent has to infer what an interface means from labels, DOM structure, or pixels. Mission Center already had explicit lifecycle truth, evidence gates, handoffs, and approval boundaries. WebMCP exposes that meaning directly to the browser agent.
+
+| Tool | What it gives the agent | Changes task state? |
 | --- | --- | --- |
-| `mission_get_overview` | Goal, progress, attention | No |
+| `mission_get_overview` | Goal, progress, and attention items | No |
 | `mission_list_tasks` | Structured task search | No |
-| `mission_inspect_task` | Task state + legal transitions | No |
-| `mission_trace_dependencies` | Bounded dependency graph | No |
-| `mission_list_evidence` | Evidence freshness and refs | No |
-| `mission_propose_transition` | Create a transition proposal | **No — proposal only** |
-| `mission_propose_next_action` | Create a next-action proposal | **No — proposal only** |
-| `mission_get_handoff` | Bounded handoff packet | No |
+| `mission_inspect_task` | Task state and allowed transitions | No |
+| `mission_trace_dependencies` | A bounded dependency graph | No |
+| `mission_list_evidence` | Evidence status, freshness, and refs | No |
+| `mission_propose_transition` | A proposed lifecycle transition | **No — proposal only** |
+| `mission_propose_next_action` | A proposed next action | **No — proposal only** |
+| `mission_get_handoff` | A bounded handoff packet | No |
 
-There is deliberately **no agent tool for approval**. Human approval happens in the visible page and rechecks task revision plus completion evidence before applying a state change.
+There is deliberately **no WebMCP approval tool**. The agent can propose a change, but nothing happens until a person approves it in the visible UI. For `Review → Done`, Mission Center rechecks the task revision and completion evidence before applying the transition.
 
-## Judge journey
+## 60-second judge path
 
-Open the live app in ChatGPT's in-app browser or WebMCP-enabled Chrome and ask:
+Open the [live app](https://gale0418.github.io/Mission-Center-WebMCP/) in ChatGPT's in-app browser or WebMCP-enabled Chrome and ask:
 
 > **Find the task in Review, inspect whether its evidence is current, and propose the safest next lifecycle move.**
 
-Expected behavior:
+Expected result:
 
-1. the agent discovers `WMC-103`;
-2. it sees current passing evidence;
-3. it creates a `Review → Done` proposal;
-4. `WMC-103` remains in Review;
-5. a person reviews the proposal and clicks **Revalidate & approve**;
-6. only then does Mission Center move the task to Done.
+1. The agent finds `WMC-103` in Review.
+2. It inspects the current passing evidence.
+3. It proposes `Review → Done`.
+4. `WMC-103` stays in Review because the proposal is inert.
+5. A person reviews the proposal and clicks **Revalidate & approve**.
+6. Mission Center revalidates the task and only then moves it to Done.
 
-In an ordinary browser without `document.modelContext`, **Run judge journey** exercises the exact same descriptor handlers as a deterministic inspection fallback. The page clearly labels this as fallback, not native WebMCP.
+In a browser without `document.modelContext`, **Run judge journey** uses the same deterministic descriptor handlers as a clearly labeled fallback. It is not presented as native WebMCP.
 
-## Run locally
+## Why keep the human gate?
 
-No dependencies are required beyond a modern browser, Node 20+, and any static HTTP server.
+WebMCP makes the agent better at understanding the application. It should not silently make the agent the authority over the application.
 
-```bash
-python3 -m http.server 8080
-# open http://127.0.0.1:8080/
+Mission Center keeps three things separate and visible:
 
-npm test
-npm run verify
+```text
+Agent action → proposal → human decision
 ```
 
-Direct `file://` opening is not supported because the app fetches the checked-in mission fixture.
+That separation makes the workflow easy to inspect, replay, and audit without storing prompts or model reasoning.
 
 ## Architecture
 
@@ -74,31 +74,58 @@ WebMCP agent ─ tools ─┤
                lifecycle state
 ```
 
-The app is static, uses no application backend, and keeps challenge state in validated browser local storage. Reset returns to the checked-in synthetic fixture.
+The challenge app is static, uses **zero application backend**, and stores its demo state in validated browser local storage. **Reset demo state** returns to the checked-in deterministic challenge mission.
 
-## Current official WebMCP shape
+## Implementation
 
-The challenge edition uses the imperative API documented by Chrome: `document.modelContext.registerTool({ name, description, inputSchema, annotations, execute })`. WebMCP is experimental and subject to change; this adapter is isolated from the product-domain functions in `assets/core.js`.
+The WebMCP adapter uses Chrome's imperative shape:
+
+```js
+document.modelContext.registerTool({
+  name,
+  description,
+  inputSchema,
+  annotations,
+  execute,
+})
+```
+
+The adapter lives in `assets/webmcp.js`; product-domain logic remains in `assets/core.js`. This keeps the experimental browser API separate from Mission Center's lifecycle rules.
+
+## Run locally
+
+No application dependencies are required beyond a modern browser, Node 20+ for verification, and any static HTTP server.
+
+```bash
+python3 -m http.server 8080
+# open http://127.0.0.1:8080/
+
+npm test
+npm run verify
+```
+
+Direct `file://` opening is not supported because the app fetches the checked-in mission fixture.
 
 ## Security and privacy
 
-Read [`SECURITY.md`](SECURITY.md) and [`PRIVACY.md`](PRIVACY.md). The important boundary is simple: WebMCP can create proposals but cannot approve them, and free-text inputs are bounded and screened for common secret-assignment patterns.
+The important boundary is simple: WebMCP can create proposals but cannot approve them. Persisted state is validated, proposal approvals are revision-bound, free-text inputs are bounded, and common secret-assignment patterns are screened.
+
+Read [`SECURITY.md`](SECURITY.md) and [`PRIVACY.md`](PRIVACY.md) for the complete challenge boundary.
 
 ## Challenge materials
 
 - [`CHALLENGE_SUBMISSION.md`](CHALLENGE_SUBMISSION.md) — submission copy and judge instructions
-- [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md) — <3 minute recording plan
+- [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md) — recording plan
+- [`UPSTREAM_BASELINE.md`](UPSTREAM_BASELINE.md) — prior-work disclosure
 - [`review/STRICT_REVIEW_PROMPT.md`](review/STRICT_REVIEW_PROMPT.md) — hostile reviewer prompt
-- [`review/REVIEW_LOG.md`](review/REVIEW_LOG.md) — actual fix/review waves only
+- [`review/REVIEW_LOG.md`](review/REVIEW_LOG.md) — actual review and fix waves
 
 ## Deployment
 
-The included GitHub Pages workflow deploys the repository's static challenge surface from `main`. The expected public URL is:
+GitHub Actions verifies the challenge build and deploys the minimal static surface from `main` to GitHub Pages:
 
 **https://gale0418.github.io/Mission-Center-WebMCP/**
 
-Do not treat that URL as verified merely because it is expected; submission readiness requires opening the deployed URL after the Pages workflow succeeds.
-
 ## License
 
-MIT © 2026 Gale0418. The upstream and challenge edition share the same author and MIT license.
+MIT © 2026 Gale0418. The upstream project and challenge edition share the same author and MIT license.

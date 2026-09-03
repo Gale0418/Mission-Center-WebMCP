@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Mission Center WebMCP challenge edition: agents inspect and propose; humans approve; evidence gates completion.">
+  <meta name="description" content="Mission Center WebMCP: eight native browser tools let agents inspect mission state and propose changes while humans keep final approval.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>Mission Center WebMCP · Human in Command</title>
   <link rel="stylesheet" href="./assets/app.css">
@@ -24,7 +24,7 @@
         <div class="brand-copy">
           <p class="product-name">Mission Center <span>WebMCP</span></p>
           <h1 id="missionTitle">Loading Mission Center…</h1>
-          <p class="subtitle" id="missionGoal">Loading canonical challenge state.</p>
+          <p class="subtitle" id="missionGoal">Loading challenge state.</p>
         </div>
       </div>
       <div class="status-cluster" aria-label="System status">
@@ -39,7 +39,7 @@
         <div class="hero-copy">
           <p class="doctrine">Human in command</p>
           <h2>Agent proposes. Human decides. Mission Center verifies.</h2>
-          <p>The browser agent receives structured tools for discovery, evidence inspection, dependency tracing, and safe proposals. It receives no tool that can approve its own proposal.</p>
+          <p>The agent can inspect tasks, evidence, and dependencies, then propose a change. It cannot approve its own proposal.</p>
           <div class="progress-block">
             <div class="progress-label"><span>Mission completion</span><strong id="progressValue">0%</strong></div>
             <div class="progress" aria-label="Mission progress"><div id="progressBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div></div>
@@ -64,7 +64,7 @@
 
     <div class="layout">
       <section class="panel board-panel" aria-labelledby="boardTitle">
-        <header class="panel-head"><div><h2 id="boardTitle">Fleet command plot</h2><p>Canonical lifecycle truth · select any task to inspect its evidence and legal transitions.</p></div><span class="revision" id="revisionValue">R—</span></header>
+        <header class="panel-head"><div><h2 id="boardTitle">Fleet command plot</h2><p>Select a task to see what it can do next — and the evidence behind it.</p></div><span class="revision" id="revisionValue">R—</span></header>
         <div class="board">
           <section class="zone"><div class="zone-head"><span>Ready</span><span data-zone-count="Ready">0</span></div><ul class="zone-list" data-zone-list="Ready"></ul></section>
           <section class="zone"><div class="zone-head"><span>In Progress</span><span data-zone-count="In Progress">0</span></div><ul class="zone-list" data-zone-list="In Progress"></ul></section>
@@ -85,22 +85,22 @@
 
         <section class="panel agent-lab">
           <header class="station-head"><div><p class="station-name">Agent station</p><h2>Structured judge journey</h2></div><span class="station-signal" aria-hidden="true"></span></header>
-          <p class="help" id="webmcpHelp" hidden>This browser does not expose <code>document.modelContext</code>. Judges can still run the deterministic journey below; in ChatGPT's in-app browser or WebMCP-enabled Chrome the same handlers are registered as native tools.</p>
+          <p class="help" id="webmcpHelp" hidden>Native WebMCP is unavailable in this browser. Judges can still run the same deterministic tool handlers below; WebMCP-enabled Chrome or ChatGPT's in-app browser registers them as native tools.</p>
           <div class="agent-actions"><button class="action" type="button" id="judgeJourney">Run judge journey</button><button class="action secondary" type="button" id="resetDemo">Reset demo state</button></div>
           <pre id="toolOutput" aria-live="polite">Ask an agent: “Find the Review task, inspect its evidence, and propose the safest next lifecycle move.”</pre>
         </section>
       </aside>
     </div>
 
-    <section class="panel proposal-tray" aria-labelledby="proposalTitle"><header class="panel-head"><div><h2 id="proposalTitle">Pending human decisions</h2><p>Agent-created proposals remain inert until a person approves them.</p></div><span class="panel-note">No agent approval tool exists</span></header><ul class="proposals" id="proposalList"></ul></section>
-    <section class="panel audit" aria-labelledby="auditTitle"><header class="panel-head"><div><h2 id="auditTitle">Bounded audit trail</h2><p>Agent calls, proposals, and human decisions remain separate events.</p></div><span class="panel-note">Metadata only · no prompt/reasoning storage</span></header><ul class="audit-list" id="auditList"></ul></section>
+    <section class="panel proposal-tray" aria-labelledby="proposalTitle"><header class="panel-head"><div><h2 id="proposalTitle">Pending human decisions</h2><p>The agent can suggest a change. Nothing happens until a person approves it.</p></div><span class="panel-note">Human approval only</span></header><ul class="proposals" id="proposalList"></ul></section>
+    <section class="panel audit" aria-labelledby="auditTitle"><header class="panel-head"><div><h2 id="auditTitle">Bounded audit trail</h2><p>See what the agent did, what it proposed, and what a human approved.</p></div><span class="panel-note">No prompts or reasoning stored</span></header><ul class="audit-list" id="auditList"></ul></section>
 
     <p class="notice" id="notice" role="status" aria-live="polite">Mission Center is loading.</p>
     <footer class="footer"><span>Competition build derived from Codex Mission Center 0.5.1 · baseline documented in <code>UPSTREAM_BASELINE.md</code></span><span><a href="https://github.com/Gale0418/Mission-Center-WebMCP#readme">README</a> · <a href="https://github.com/Gale0418/Mission-Center-WebMCP/blob/main/CHALLENGE_SUBMISSION.md">Submission notes</a> · MIT</span></footer>
   </main>
 
   <dialog id="decisionDialog" aria-labelledby="decisionTitle">
-    <p class="station-name">Human command gate</p><h2 id="decisionTitle">Approve this agent proposal?</h2><p><strong id="decisionProposal"></strong></p><p id="decisionSummary"></p><p id="decisionReason"></p><p class="help">Approval re-checks the task revision and, for Review → Done, requires current passing evidence with no unresolved Critical or High findings.</p>
+    <p class="station-name">Human command gate</p><h2 id="decisionTitle">Approve this agent proposal?</h2><p><strong id="decisionProposal"></strong></p><p id="decisionSummary"></p><p id="decisionReason"></p><p class="help">Before approval, Mission Center checks that the task has not changed and that its completion evidence still passes.</p>
     <div class="dialog-actions"><button type="button" class="secondary" id="cancelApproval">Cancel</button><button type="button" id="confirmApproval">Revalidate & approve</button></div>
   </dialog>
 </body>

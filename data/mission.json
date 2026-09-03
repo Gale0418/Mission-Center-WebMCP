@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "missionId": "WEBMCP-CHALLENGE",
   "title": "Mission Center WebMCP — Human-in-Command Launch",
-  "goal": "Let a browser agent diagnose mission state and propose safe next steps while a human remains the only authority that can approve lifecycle changes.",
+  "goal": "Let an agent understand the mission and propose the next move — without taking control away from the human.",
   "revision": 7,
   "updatedAt": "2026-09-03T14:30:00Z",
   "tasks": [
