@@ -50,12 +50,24 @@ test('proposal tool cannot apply a transition by itself', () => {
   assert.equal(state.proposals[0].status, 'pending');
 });
 
-test('review-to-done approval succeeds only with current pass evidence', () => {
+test('review-to-done approval succeeds only with current pass evidence and keeps evidence current', () => {
   const state = fresh();
   const proposal = proposeTransition(state, { taskId: 'WMC-103', targetStatus: 'Done', reason: 'Evidence is current and clean.' });
   approveProposal(state, proposal.id);
   assert.equal(inspectTask(state, 'WMC-103').status, 'Done');
   assert.equal(state.proposals[0].status, 'approved');
+  const evidence = listEvidence(state, 'WMC-103');
+  assert.equal(evidence.current, true);
+  assert.equal(evidence.evidenceRevision, evidence.taskRevision);
+});
+
+test('review-to-done fails when any dependency is unfinished', () => {
+  const state = fresh();
+  state.mission.tasks.find((task) => task.id === 'WMC-103').dependencies = ['WMC-102'];
+  const proposal = proposeTransition(state, { taskId: 'WMC-103', targetStatus: 'Done', reason: 'Try completion.' });
+  assert.throws(() => approveProposal(state, proposal.id), /unfinished dependencies remain: WMC-102/);
+  assert.equal(inspectTask(state, 'WMC-103').status, 'Review');
+  assert.equal(state.proposals[0].status, 'pending');
 });
 
 test('review-to-done fails when verification is stale', () => {

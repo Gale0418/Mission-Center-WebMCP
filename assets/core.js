@@ -306,7 +306,9 @@ export function proposeNextAction(state, input) {
   return createProposal(state, "next_action", task, { nextAction }, input.reason);
 }
 
-function completionGate(task) {
+function completionGate(state, task) {
+  const unfinishedDependencies = task.dependencies.filter((dependencyId) => taskById(state, dependencyId).status !== "Done");
+  if (unfinishedDependencies.length) return `unfinished dependencies remain: ${unfinishedDependencies.join(", ")}`;
   if (!task.verification) return "passing verification is missing";
   if (task.verification.result !== "pass") return "verification result is not pass";
   if (task.verification.taskRevision !== task.revision) return "verification is stale for the current task revision";
@@ -330,7 +332,7 @@ export function approveProposal(state, proposalId) {
     const target = proposal.payload.targetStatus;
     if (!(TRANSITIONS.get(task.status) ?? new Set()).has(target)) throw new Error("transition is no longer allowed");
     if (task.status === "Review" && target === "Done") {
-      const failure = completionGate(task);
+      const failure = completionGate(state, task);
       if (failure) throw new Error(`cannot approve Done: ${failure}`);
     }
     task.status = target;
@@ -342,6 +344,10 @@ export function approveProposal(state, proposalId) {
   task.revision += 1;
   state.mission.revision += 1;
   state.mission.updatedAt = new Date().toISOString();
+  if (proposal.type === "transition" && proposal.fromStatus === "Review" && proposal.payload.targetStatus === "Done" && task.verification) {
+    task.verification.taskRevision = task.revision;
+    task.verification.checkedAt = state.mission.updatedAt;
+  }
   proposal.status = "approved";
   proposal.decidedAt = state.mission.updatedAt;
   appendAudit(state, { kind: "human", action: "proposal_approved", taskId: task.id, proposalId: proposal.id, proposalType: proposal.type });

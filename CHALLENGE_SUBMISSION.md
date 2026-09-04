@@ -12,7 +12,7 @@ A browser-native mission control where agents can inspect tasks, trace blockers,
 
 Mission Center turns agent interaction into a transparent command loop. Instead of asking an agent to infer a dashboard from pixels or DOM structure, the page exposes eight structured WebMCP tools for mission overview, task search, task inspection, dependency tracing, evidence inspection, bounded handoff, and proposal-only changes.
 
-The key design choice is the absence of an agent approval tool. A transition proposal is only a proposal. The human sees its reason, expected task revision, and target state in the same page. Approval revalidates the task revision and requires current passing evidence before a Review task may become Done.
+The key design choice is the absence of an agent approval tool. A transition proposal is only a proposal. The human sees its reason, expected task revision, and target state in the same page. Approval revalidates the task revision, requires dependencies to be complete, and requires current passing evidence before a Review task may become Done.
 
 ## Why WebMCP matters here
 
@@ -27,10 +27,10 @@ This is not a generic MCP wrapper around an API. The tools share the same live i
 3. The agent should discover `WMC-103`, inspect current passing evidence, and call `mission_propose_transition` with target `Done`.
 4. Observe that the task remains in Review and a pending proposal appears.
 5. Click **Approve** and then **Revalidate & approve**.
-6. Mission Center checks task revision and completion evidence, then moves the task to Done.
+6. Mission Center checks dependencies, task revision, and completion evidence, then moves the task to Done while keeping the revalidated evidence current.
 7. Reset the demo to repeat the journey.
 
-If the browser does not expose WebMCP, **Run judge journey** executes the exact same tool descriptors/handlers locally so the product interaction remains inspectable.
+If the browser does not expose WebMCP, **Run judge journey** executes the exact same tool descriptors/handlers locally so the product interaction remains inspectable. The page clearly labels this as fallback rather than native WebMCP.
 
 ## Prior work disclosure
 
@@ -43,7 +43,7 @@ This competition edition is derived from the existing MIT-licensed Codex Mission
 - eight imperative WebMCP tools registered through `document.modelContext.registerTool`;
 - browser-local validated state;
 - proposal-only agent mutations;
-- human evidence/revision gate;
+- dependency + evidence + revision human gate;
 - deterministic Node test and verification suite;
 - GitHub Pages deployment from `main`.
 
@@ -53,10 +53,10 @@ https://github.com/Gale0418/Mission-Center-WebMCP
 
 ## Live app
 
-Expected GitHub Pages URL after the included Pages workflow succeeds:
+Deployed from `main` through the repository's verified GitHub Pages workflow:
 
 https://gale0418.github.io/Mission-Center-WebMCP/
 
 ## Demo video
 
-A <3 minute demo video is required by the challenge. `DEMO_SCRIPT.md` contains the exact recording plan. The video URL must only be added after the uploaded video is actually public and playable.
+The Devpost submission includes the public demo video. [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md) keeps the reproducible recording path and judge prompt in the repository; the external video URL is managed in the Devpost submission rather than duplicated here.

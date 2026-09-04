@@ -3,8 +3,8 @@
   "missionId": "WEBMCP-CHALLENGE",
   "title": "Mission Center WebMCP — Human-in-Command Launch",
   "goal": "Let an agent understand the mission and propose the next move — without taking control away from the human.",
-  "revision": 7,
-  "updatedAt": "2026-09-03T14:30:00Z",
+  "revision": 8,
+  "updatedAt": "2026-09-04T00:10:00Z",
   "tasks": [
     {
       "id": "WMC-101",
@@ -43,7 +43,7 @@
       "priority": "P0",
       "status": "Review",
       "owner": "Mission Center",
-      "dependencies": ["WMC-101", "WMC-102"],
+      "dependencies": ["WMC-101"],
       "nextAction": "Ask the agent to inspect the evidence and propose Done; a human must approve it.",
       "verification": {
         "result": "pass",
